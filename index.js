@@ -34,21 +34,25 @@ args.reduce((result, argument) => {
     return result;
 }, argsNamed);
 
-// pull these out for readability
+// merge CLI with config (couldn't find a better way to do this.
+// Object.assign didn't like the nested properties)
 
-var repoFolder = argsNamed.repo || config.repo;
-var includeBranchInResults = (argsNamed.showBranch || config.show.branch) !== 'false';
-var showResultsAsTable = (argsNamed.showTable || config.show.table) == 'true';
-var debugOn = (argsNamed.showDebug || config.show.debug) === 'true';
-var showPath = (argsNamed.showPath || config.show.path) === 'true';
+var options = {
+    'repo' : argsNamed.repo || config.repo,
+    'show' : {
+        'branch' : (argsNamed.showBranch || config.show.branch) !== 'false',
+        'table' : (argsNamed.showTable || config.show.table) !== 'false',
+        'debug' : (argsNamed.showDebug || config.show.debug) !== 'false',
+        'path' : (argsNamed.showPath || config.show.path) !== 'false'
+    }
+};
 
 // if including debug, show that
 
-if (debugOn) {
-    console.log('repo folder -> ' + repoFolder);
-    console.log('includeBranch -> ' + includeBranchInResults);
-    console.log('showResultsAsTable -> ' + showResultsAsTable);
-    console.log('showPath -> ' + showPath);
+if (options.show.debug) {
+    console.log('config -> ' + JSON.stringify(config));
+    console.log('parameters -> ' + JSON.stringify(argsNamed));
+    console.log('options -> ' + JSON.stringify(options));
 }
 
 // build the git statement
@@ -61,11 +65,11 @@ var grepSourceString = ticketList.map((ti) => {
     return '|' + ti;
 }).join('');
 
-var listFilesCommand = 'git log ' + searchString + ' --name-only | grep -E "^src' + (includeBranchInResults || showResultsAsTable ? grepSourceString + '"' : '" | sort | uniq');
+var listFilesCommand = 'git log ' + searchString + ' --name-only | grep -E "^src' + (options.show.branch || options.show.table ? grepSourceString + '"' : '" | sort | uniq');
 
 // show to console if debug on
 
-if (debugOn) {
+if (options.show.debug) {
     console.log(listFilesCommand);
 }
 
@@ -74,7 +78,7 @@ if (debugOn) {
 var displayAsText = function(error, stdout, stderr) {
     stdout.split('\n').forEach((item) => {
         var textColor =  item.match('^src') ? '\x1b[31m' : '\x1b[30m'
-        var component = showPath ? item.trim() : path.parse(item).name;
+        var component = options.show.path ? item.trim() : path.parse(item).name;
         console.log(textColor, component);
     });
 };
@@ -86,9 +90,9 @@ var displayAsTable = function(error, stdout, stderr) {
     var currentBranch;
     stdout.split('\n').forEach((item) => {
         if (item.match('^src')) {
-            var component = showPath ? item.trim() : path.parse(item).name;
+            var component = options.show.path ? item.trim() : path.parse(item).name;
             tableRows.push([currentBranch, component]);
-            if (argsNamed.showBranch === 'distinct') {
+            if (options.show.branch === 'distinct') {
                 currentBranch = '';
             }
         } else {
@@ -102,5 +106,5 @@ var displayAsTable = function(error, stdout, stderr) {
 // finally - do the work
 
 exec(listFilesCommand, {
-  cwd: repoFolder
-}, showResultsAsTable ? displayAsTable : displayAsText);
+  cwd: options.repo
+}, options.show.table ? displayAsTable : displayAsText);
