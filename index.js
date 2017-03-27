@@ -1,3 +1,5 @@
+#! /usr/bin/env node
+
 // add external dependencies.
 
 require('console.table');

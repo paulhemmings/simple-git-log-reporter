@@ -1,5 +1,5 @@
 {
-  "name": "git-ui",
+  "name": "git-tickets",
   "version": "1.0.0",
   "description": "a simple git ui specific to the requirements of RH",
   "main": "index.js",
@@ -16,5 +16,8 @@
     "console.table": "^0.8.0",
     "gift": "^0.10.0",
     "node-yaml-config": "0.0.4"
+  },
+  "bin" : {
+    "git-tickets" : "index.js"
   }
 }
