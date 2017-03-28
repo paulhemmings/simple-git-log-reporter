@@ -18,7 +18,7 @@ var args = process.argv.slice(2);
 // show an error if they've not included at least the ticket number
 
 if (args.length < 1) {
-    return console.log('usage :: node index.js {ticket number} [repo={repo}, showBranch={true:false}, showTable={true:false}, showDebug={true:false}]');
+    return console.log('usage :: git-tickets {ticket number} [repo={repo}, showBranch={true:false}, showTable={true:false}, showDebug={true:false}]');
 }
 
 var ticketList = args[0].split(',');
@@ -92,15 +92,19 @@ var displayAsTable = function(error, stdout, stderr) {
         if (item.match('^src')) {
             var component = options.show.path ? item.trim() : path.parse(item).name;
             tableRows.push([currentBranch, component]);
-            if (options.show.branch === 'distinct') {
-                currentBranch = '';
-            }
         } else {
             currentBranch = item.trim();
-            // tableRows.push(['', '']); // space after branch changes
         }
     });
-    console.table(['branch', 'component'], tableRows);
+    console.table(['commit', 'component'], tableRows.sort((lhs,rhs) => {
+        if (lhs[0] < rhs[0]) {
+            return -1;
+        }
+        if (lhs[0] > rhs[0]) {
+            return 1;
+        }
+        return 0;
+    }));
 };
 
 // finally - do the work
