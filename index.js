@@ -18,7 +18,7 @@ var args = process.argv.slice(2);
 // show an error if they've not included at least the ticket number
 
 if (args.length < 1) {
-    return console.log('usage :: git-tickets {ticket number} [repo={repo}, showBranch={true:false}, showTable={true:false}, showDebug={true:false}]');
+    return console.log('usage :: git-tickets {ticket number} [repo={repo} showBranch={true:false} showTable={true:false} showDebug={true:false}]');
 }
 
 var ticketList = args[0].split(',');
