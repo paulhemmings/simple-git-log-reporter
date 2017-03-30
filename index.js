@@ -96,7 +96,7 @@ var displayAsText = function(error, stdout, stderr) {
 var exportAsCsv = function(dataArray, outputFilePath) {
     var writeStream = fs.createWriteStream(outputFilePath).once('open', (fd) => {
         dataArray.forEach((item) => {
-            var clean = item.map((i)=> { return i.replace(',',' ');});
+            var clean = item.map((i)=> { return i.replace(/,/g,' ');});
             writeStream.write(`${clean.join(',')}\r\n`);
         });
         writeStream.end();
