@@ -1,7 +1,5 @@
 default:
     repo: /Users/phemmings/Projects/git/Salesforce/
-    show:
-        branch: 'true'
-        table: 'true'
-        debug: 'false'
-        path: 'true'
+    display: 'table'
+    debug: 'false'
+    path: 'true'

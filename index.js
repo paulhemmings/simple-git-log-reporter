@@ -3,9 +3,10 @@
 // add external dependencies.
 
 require('console.table');
-var exec = require('child_process').exec;
-var yaml_config = require('node-yaml-config');
-var path = require('path');
+const exec = require('child_process').exec;
+const yaml_config = require('node-yaml-config');
+const path = require('path');
+const fs = require('fs');
 
 // load the configuration - which can be later overidden by CLI parameters
 
@@ -18,7 +19,7 @@ var args = process.argv.slice(2);
 // show an error if they've not included at least the ticket number
 
 if (args.length < 1) {
-    return console.log('usage :: git-tickets {ticket number} [repo={repo} showBranch={true:false} showTable={true:false} showDebug={true:false}]');
+    return console.log('usage :: git-tickets {ticket number} [repo={repo} display={table|csv|line} path={true:false} debug={true:false}]');
 }
 
 var ticketList = args[0].split(',');
@@ -34,22 +35,13 @@ args.reduce((result, argument) => {
     return result;
 }, argsNamed);
 
-// merge CLI with config (couldn't find a better way to do this.
-// Object.assign didn't like the nested properties)
+// merge CLI with configuration
 
-var options = {
-    'repo' : argsNamed.repo || config.repo,
-    'show' : {
-        'branch' : (argsNamed.showBranch || config.show.branch) !== 'false',
-        'table' : (argsNamed.showTable || config.show.table) !== 'false',
-        'debug' : (argsNamed.showDebug || config.show.debug) !== 'false',
-        'path' : (argsNamed.showPath || config.show.path) !== 'false'
-    }
-};
+var options = Object.assign({}, config, argsNamed);
 
 // if including debug, show that
 
-if (options.show.debug) {
+if (options.debug === 'true') {
     console.log('config -> ' + JSON.stringify(config));
     console.log('parameters -> ' + JSON.stringify(argsNamed));
     console.log('options -> ' + JSON.stringify(options));
@@ -65,12 +57,28 @@ var grepSourceString = ticketList.map((ti) => {
     return '|' + ti;
 }).join('');
 
-var listFilesCommand = 'git log ' + searchString + ' --name-only | grep -E "^src' + (options.show.branch || options.show.table ? grepSourceString + '"' : '" | sort | uniq');
+var listFilesCommand = 'git log ' + searchString + ' --name-only | grep -E "^src' + (options.branch === 'true' || options.display !== 'line' ? grepSourceString + '"' : '" | sort | uniq');
 
 // show to console if debug on
 
-if (options.show.debug) {
+if (options.debug === 'true') {
     console.log(listFilesCommand);
+}
+
+// function that converts the branch/source stream into a 2d array
+
+var convertStreamToArray = function(stream) {
+    var dataArray = [];
+    var currentBranch;
+    stream.split('\n').forEach((item) => {
+        if (item.match('^src')) {
+            var component = options.path === 'true' ? item.trim() : path.parse(item).name;
+            dataArray.push([currentBranch, component]);
+        } else {
+            currentBranch = item.trim();
+        }
+    });
+    return dataArray;
 }
 
 // function that displays the result as straight text
@@ -78,25 +86,26 @@ if (options.show.debug) {
 var displayAsText = function(error, stdout, stderr) {
     stdout.split('\n').forEach((item) => {
         var textColor =  item.match('^src') ? '\x1b[31m' : '\x1b[30m'
-        var component = options.show.path ? item.trim() : path.parse(item).name;
+        var component = options.path === 'true' ? item.trim() : path.parse(item).name;
         console.log(textColor, component);
     });
 };
 
-// function that displays the result in a table
+// function that exports a 2d array to a CSV
 
-var displayAsTable = function(error, stdout, stderr) {
-    var tableRows = [];
-    var currentBranch;
-    stdout.split('\n').forEach((item) => {
-        if (item.match('^src')) {
-            var component = options.show.path ? item.trim() : path.parse(item).name;
-            tableRows.push([currentBranch, component]);
-        } else {
-            currentBranch = item.trim();
-        }
+var exportAsCsv = function(dataArray, outputFilePath) {
+    var writeStream = fs.createWriteStream(outputFilePath).once('open', (fd) => {
+        dataArray.forEach((item) => {
+            var clean = item.map((i)=> { return i.replace(',',' ');});
+            writeStream.write(`${clean.join(',')}\r\n`);
+        });
+        writeStream.end();
     });
-    console.table(['commit', 'component'], tableRows.sort((lhs,rhs) => {
+}
+// function that displays a 2d array in a table
+
+var displayAsTable = function(dataArray) {
+    console.table(['commit', 'component'], dataArray.sort((lhs,rhs) => {
         if (lhs[0] < rhs[0]) {
             return -1;
         }
@@ -107,8 +116,28 @@ var displayAsTable = function(error, stdout, stderr) {
     }));
 };
 
+// build processor based on options
+
+var buildProcessor = function(options) {
+    if(options.display === 'table') {
+        return function(error, stdout, stderr) {
+            displayAsTable(convertStreamToArray(stdout));
+        }
+    }
+    if (options.display === 'csv') {
+        return function(error, stdout, stderr) {
+            exportAsCsv(convertStreamToArray(stdout), path.join(process.cwd(),'git-tickets-output.csv'));
+        }
+    }
+    if (options.display === 'line') {
+        return function(error, stdout, stderr) {
+            displayAsText(error, stdout, stderr);
+        }
+    }
+}
+
 // finally - do the work
 
 exec(listFilesCommand, {
   cwd: options.repo
-}, options.show.table ? displayAsTable : displayAsText);
+}, buildProcessor(options));
