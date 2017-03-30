@@ -19,7 +19,7 @@ var args = process.argv.slice(2);
 // show an error if they've not included at least the ticket number
 
 if (args.length < 1) {
-    return console.log('usage :: git-tickets {ticket number} [repo={repo} display={table|csv|line} path={true:false} debug={true:false}]');
+    return console.log('usage :: git-tickets {ticket number} [repo={repo} display={table|csv|line} path={true:false} debug={true:false} outputFilePath={file.csv}]');
 }
 
 var ticketList = args[0].split(',');
@@ -126,7 +126,7 @@ var buildProcessor = function(options) {
     }
     if (options.display === 'csv') {
         return function(error, stdout, stderr) {
-            exportAsCsv(convertStreamToArray(stdout), path.join(process.cwd(),'git-tickets-output.csv'));
+            exportAsCsv(convertStreamToArray(stdout), path.join(process.cwd(),options.outputFilePath));
         }
     }
     if (options.display === 'line') {

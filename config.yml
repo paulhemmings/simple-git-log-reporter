@@ -3,3 +3,4 @@ default:
     display: 'table'
     debug: 'false'
     path: 'true'
+    outputFilePath: 'git-tickets-output.csv'
